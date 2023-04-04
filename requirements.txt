@@ -1,0 +1,7 @@
+googlesearch
+transformers
+openai
+requests
+newspaper3k
+bs4
+justext
