@@ -38,9 +38,14 @@ def complete(prompt, max_tokens=1000, temperature=0.7, model='text-davinci-003',
     'max_tokens': max_tokens,
     'best_of': best_of,
   }
-  response = openai.Completion.create(**api_params)
-  generated_text = response.choices[0].text
-  return generated_text
+  for _ in range(3):
+    try:
+      response = openai.Completion.create(**api_params)
+      generated_text = response.choices[0].text
+      return generated_text
+    except openai.error.APIConnectionError as e:
+      pass
+  raise e
 
 def truncate_and_complete(prompt, max_tokens=1000, temperature=0.7, model='text-davinci-003', best_of=3, model_max_tokens=4096, split_str="\n"):
   truncated_prompt = truncate(

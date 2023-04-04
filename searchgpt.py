@@ -36,11 +36,12 @@ def complete_with_sources(prompt):
   while token_count(corpus) > max_tokens:
     corpus = sintetize(prompt, corpus)
     sintesis_count += 1
-    if sintesis_count > 3:
+    if sintesis_count > 2:
       corpus = truncate(corpus, max_tokens=max_tokens)
       break
 
   debug("O")
+  debug("\n-CORPUS-\n"+corpus+"\n-/CORPUS-\n")
   return complete(complete_prompt + prompt + "\n\nRelevant information:\n" + corpus + "\n\n")
 
 
@@ -69,7 +70,8 @@ Request: How to play starcraft?
 Request: """
 def generate_search_queries(original_query):
   debug("O")
-  response = complete(search_prompt + original_query.strip() + "\n\n- ")
+  response = complete(search_prompt + original_query.strip() + "\n\n")
+  debug("\n"+response+"\n")
   return re.findall(r'^- (.+)', response, flags=re.MULTILINE)
 
 
@@ -128,8 +130,8 @@ def sintetize(query, text):
     sintesis_count += 1
     chunk = truncate(left, max_tokens=4096-base_token_count)
     left = left[min(len(chunk)+1,len(left)):] # For all chunks but the last we need to cut the separator too
-    sintesis += doit(query, chunk)
-    if sintesis_count > 3:
+    sintesis += doit(query, chunk) + "\n"
+    if sintesis_count > 2:
       break
   return sintesis
 
