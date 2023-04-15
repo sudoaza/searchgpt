@@ -1,3 +1,5 @@
+import os, sys
+from googlesearch import search
 import requests
 from newspaper import Article
 from bs4 import BeautifulSoup
@@ -14,6 +16,8 @@ def get_article(url):
     try:
       response = requests.get(url, headers=headers)
       break
+    except requests.exceptions.MissingSchema as e:
+      return ""
     except Exception as e:
       print("Backoff\n" + str(e), file=sys.stderr)
       if backoff > 120:
@@ -76,3 +80,23 @@ def extract_text(text):
 
   # Just dump all the text
   return soup.get_text("\n")
+
+# Search in google and return the text of the first N results.
+def do_search(query, num_results=10):
+  answers = []
+  for url in retry_search(query, num_results=num_results):
+    answers.append( {"text": get_article(url), "source": url} )
+  return answers
+
+def retry_search(*args, **kwargs):
+  backoff = 1
+  while True:
+    try:
+      return [x for x in search(*args, **kwargs)]
+    except (Exception, requests.exceptions.HTTPError) as e:
+      print("Search error: ", e, file=sys.stderr)
+      if backoff > 30:
+        print("Quitting.", file=sys.stderr)
+        break
+      sleep(backoff)
+      backoff *= 2.72

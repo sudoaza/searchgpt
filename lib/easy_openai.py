@@ -29,6 +29,16 @@ def truncate(text, max_tokens=4096, split_str="\n"):
     keep += split_str + piece
   return keep
 
+def chunk(text, max_tokens=4096, split_str="\n"):
+  chunks = []
+  while len(text) > 0:
+    chunk = truncate(text, max_tokens=max_tokens, split_str=split_str)
+    text = text[len(chunk):]
+    if len(chunk) < 3:
+      break
+    chunks.append(chunk)
+  return chunks
+
 # Call Openai completion API.
 def complete(prompt, max_tokens=1000, temperature=0.7, model='text-davinci-003', best_of=3):
   api_params = {
@@ -60,3 +70,19 @@ def truncate_and_complete(prompt, max_tokens=1000, temperature=0.7, model='text-
     model=model,
     best_of=best_of
   )
+
+
+def usermsg(msg):
+  return {"role":"user","content":msg}
+
+def agentmsg(msg):
+  return {"role":"assistant","content":msg}
+
+def chat_complete(prompt, system="You are a helpful assistant."):
+  if type(prompt) == str:
+    prompt = [{"role": "system", "content": system }, usermsg(prompt)]
+
+  response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=prompt)
+  response_text = response.choices[0].message.content
+  prompt.append(agentmsg(response_text))
+  return prompt, response_text
