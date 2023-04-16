@@ -8,28 +8,27 @@ from lib.easy_openai import *
 from lib.models import *
 from lib.app import *
 
-agent_prompt = """Remember, you are a viable system, as such you must keep track of the world state you interact with, your current task and it's place in your long term plan.
+agent_prompt = """Remember, you are a viable system, as such you must reproduce yourself at each time step. Keep track of the environment you interact with, your current task and it's place in your long term plan.
 
 When presented with a task, you will interpret it and provide your plan, what you will be doing now and your world representation.
-For the plan, provide a list of steps. Each a short sentence. Build on this list to develop and remember the plan.
+For the plan, provide a list of 3 or 4 steps. Each a short sentence, can include sub-tasks. Build on this list to develop and remember the plan and keep track of it.
 For the doing section, please provide a brief explanation of what current action you will be performing with what end or under what asumptions. Use this to build the response or research data for the {task}.
-You will take several steps to answer your question, you will take time to analyze and set out your ideas.
+Once a step is Done you can remove it. 
 
-Think of the information you will need to answer and look at past states to write the current state.
+Write what you plan to search and read as tasks but only execute one command at a time. A good plan is the search, read, analyze, plan loop. Search for some information, read a couple of articles, sintetize them identifying more specific subjects to research deeper.
+Stop when you have enough information to answer the task truthfully and with confidence.
 
 # Format
 
-Please always format your response as follows, so you can remember what 
-you are doing.
     Plan: [What is the long term plan?]
-    Doing: [What are we doing? What are our assumptions? What problems?]
+    Doing: [What are we doing? How are you doing it? What are our assumptions? What problems?]
     Command: [One command to choose from available SEARCH/READ/CONTINUE/FINAL]
 
 ## Only Available Commands:
-- SEARCH [Search query] to search for information online and get a list of URLs.
-- READ [Url] to read the text information at that one URL.
-- CONTINUE to continue analyzing the available information without requesting new information.
-- FINAL [Final response] One or many lines of text with the final response to the {task}.
+- SEARCH [Google Search query]
+- READ [Number] to read more information about that search result.
+- CONTINUE [Temporary response] to write a temporary conclusion and continue analyzing the past conversation.
+- FINAL [Final response] One or many lines of text with the final response based on research for the {task}.
 
 You can only issue one command per update.
 
@@ -41,12 +40,21 @@ Plan:
   - Compile top parragraphs relevant to answering the question. 
   - Respond based on all researched information.
 Doing: Searching for papers on glyphosate toxicity, this should be an authoritative source.
-If information is incomplete we can do another search.
+If information is incomplete we can do another search. I will write a Google search query for the SEARCH Command.
+I will pick 3 diverse urls from the results and read each.
 Command: SEARCH scientific publication glyfosate toxicity, harm and exposure
 
 # Example 2
 Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
-Command: READ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5515989/
+Command: READ 1
+
+# Example 3
+Doing: Sintetizing relevant information from previous article and compiling with previous information.
+COMMAND: CONTINUE Glyphosate is a widely used herbicide with low hazard potential to mammals, as established by all regulatory assessments since its introduction in 1974. However, in March 2015, the International Agency for Research on Cancer (IARC) concluded that glyphosate is probably carcinogenic. This conclusion was not confirmed by the European Union (EU) assessment or the recent joint WHO/FAO evaluation, both using additional evidence. Differences in the evaluation of the available evidence and the use of different data sets, particularly on long-term toxicity/carcinogenicity in rodents, may partially explain the divergent views. This review presents the scientific basis of the glyphosate health assessment conducted within the EU renewal process, explains the differences in the carcinogenicity assessment with IARC, and suggests that actual exposure levels are below reference values and do not represent a public concern. The EU assessment did not identify a carcinogenicity hazard, revised the toxicological profile, and conducted a risk assessment for some representative uses.
+
+# Example 4
+Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
+Command: READ 2
 
 # Actual
 Task: """
@@ -55,14 +63,20 @@ def agent_start(prompt):
   plan = ""
   control = ""
   command = ""
+  urls = []
   system_prompt = agent_prompt + prompt
   while True: # Tic tac
-
+    max_tokens_convo = 4000 - token_count3(system_prompt)
+    
+    # Always but first round
     if type(prompt) == list:
-      while (len(prompt) > 10 or num_tokens_from_messages(prompt) > 4000):
-        prompt = prompt[2:]
-      if prompt[0]["role"] != "system":
-        prompt[0] = {"role":"system","content":system_prompt}
+      prompt = truncate_convo(prompt, max_tokens_convo)
+      if len(prompt) > 0:
+        if prompt[0]["role"] != "system":
+          prompt[0] = sysmsg(system_prompt)
+      else:
+        print("WHAT just happened?", file=sys.stderr)
+        prompt = [sysmsg(system_prompt),agentmsg(plan+control)]
 
     (prompt, response) = chat_complete(prompt, system=system_prompt)
     (plan_, control_, command_) = parse_state(response)
@@ -83,28 +97,29 @@ def agent_start(prompt):
     # SEARCH
     if is_command(command,"SEARCH"):
       query = " ".join(command_params(command))
-      urls = retry_search(query, num_results=10)
-      
-      print("\n".join(urls))
-      prompt.append(usermsg("Search results:\n" + "\n".join(urls)))
+      urls = retry_search(query, num_results=6, advanced=True)
+      urls_list = "\n\n".join([str(i+1) + ": " + url.url + "\n" + url.title + "\n" + url.description for i, url in enumerate(urls)])
+      print(urls_list)
+      prompt.append(usermsg("Search results:\n" + urls_list))
 
     # READ
     elif is_command(command,"READ"):
-      url = command_param(command)
-      if url[-1] == ".":
-        url = url[:-1]
-      print("Reading", url)
+      url_n = command_param(command)
+      url_n = re.search(r'\d+', url_n).group()
+      url = urls[int(url_n) - 1].url
+      print("Reading", url_n, url)
       text = get_article(url)
       print(text)
       if text.strip() != "":
-        prompt.extend( [usermsg("Text: " + piece) for piece in chunk(text, token_counter=token_count3)][:6] )
+        prompt.extend( [usermsg("Text: " + piece) for piece in chunk(text, max_tokens=max_tokens_convo, token_counter=token_count3)][:6] )
 
     # CONTINUE
     elif is_command(command,"CONTINUE"):
       prompt.append(usermsg("CONTINUE"))
 
+    # FINAL
     elif is_command(command,"FINAL"):
-      response = command_params(command, sep=", ")
+      response = " ".join(command_params(command))
       print('New task or exit:', end="")
       new_prompt = input()
       if new_prompt.strip() == "" or new_prompt.strip().lower() == "exit":

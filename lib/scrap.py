@@ -1,10 +1,16 @@
-import os, sys
+import os, sys, io
 from googlesearch import search
 import requests
 from newspaper import Article
 from bs4 import BeautifulSoup
 import justext
 from time import sleep
+import pdftotext
+
+def extract_text_from_pdf_binary(pdf_binary):
+    pdf_file = io.BytesIO(pdf_binary)
+    pdf = pdftotext.PDF(pdf_file)
+    return "\n\n".join(pdf)
 
 def get_article(url):
   headers = {
@@ -27,8 +33,14 @@ def get_article(url):
         return ""
       sleep(backoff)
       backoff *= 2.72
-  html_content = response.content
-  return extract_text(html_content)
+  
+  content_type = response.headers.get('content-type')
+  if 'pdf' in content_type:
+    pdf_content = response.content
+    return extract_text_from_pdf_binary(pdf_content)
+  else:
+    html_content = response.content
+    return extract_text(html_content)
 
 # Make sure we extract article text from html
 def extract_text(text):

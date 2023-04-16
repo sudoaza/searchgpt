@@ -131,3 +131,8 @@ def chat_complete(prompt, system="You are a helpful assistant."):
   response_text = response.choices[0].message.content
   prompt.append(agentmsg(response_text))
   return prompt, response_text
+
+def truncate_convo(convo, max_tokens=4096):
+  while num_tokens_from_messages(convo) > max_tokens:
+    convo = convo[1:]
+  return convo
