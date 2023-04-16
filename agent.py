@@ -31,8 +31,7 @@ you are doing.
 - CONTINUE to continue analyzing the available information without requesting new information.
 - FINAL [Final response] One or many lines of text with the final response to the {task}.
 
-You can only read one URL at the time. Remember any other as tasks.
-Update your plan when it changes, provide a response when you want and always include the doing section.
+You can only issue one command per update.
 
 # Example
 Task: Analyze glyphosate toxicity.
@@ -41,9 +40,13 @@ Plan:
   - Compile top relevant papers talking about glyphosate effects on humans and animals.
   - Compile top parragraphs relevant to answering the question. 
   - Respond based on all researched information.
-Donig: Searching for papers on glyphosate toxicity, this should be an authoritative source.
+Doing: Searching for papers on glyphosate toxicity, this should be an authoritative source.
 If information is incomplete we can do another search.
 Command: SEARCH scientific publication glyfosate toxicity, harm and exposure
+
+# Example 2
+Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
+Command: READ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5515989/
 
 # Actual
 Task: """
@@ -54,12 +57,16 @@ def agent_start(prompt):
   command = ""
   system_prompt = agent_prompt + prompt
   while True: # Tic tac
+
+    if type(prompt) == list:
+      while (len(prompt) > 10 or num_tokens_from_messages(prompt) > 4000):
+        prompt = prompt[2:]
+      if prompt[0]["role"] != "system":
+        prompt[0] = {"role":"system","content":system_prompt}
+
     (prompt, response) = chat_complete(prompt, system=system_prompt)
     (plan_, control_, command_) = parse_state(response)
     print(response)
-    if len(prompt) > 10:
-      prompt = prompt[-10:]
-      prompt[0] = {"role":"system","content":system_prompt}
     
     if plan_:
       plan = plan_
@@ -88,26 +95,22 @@ def agent_start(prompt):
         url = url[:-1]
       print("Reading", url)
       text = get_article(url)
-      sintesis = "Error, unable to READ URL. Try a different one."
+      print(text)
       if text.strip() != "":
-        n = 0
-        sintesis = ""
-        for piece in chunk(text, max_tokens=3968):
-          _, response = chat_complete(piece, system="Hello assistant, please select information relevant to the task.\nReproduce titles, lines, parragraphs and context when relevant.\nAlso provide a general sintesis.\n"+plan+control)
-          sintesis += response + "\n"
-          n += 1
-          if n > 6:
-            break
+        prompt.extend( [usermsg("Text: " + piece) for piece in chunk(text, token_counter=token_count3)][:6] )
 
-      prompt.append(usermsg(sintesis))
-      print(sintesis)
     # CONTINUE
     elif is_command(command,"CONTINUE"):
       prompt.append(usermsg("CONTINUE"))
 
     elif is_command(command,"FINAL"):
       response = command_params(command, sep=", ")
-      return response
+      print('New task or exit:', end="")
+      new_prompt = input()
+      if new_prompt.strip() == "" or new_prompt.strip().lower() == "exit":
+        return response
+      system_prompt = agent_prompt + new_prompt
+      prompt.extend([sysmsg(system_prompt), usermsg(new_prompt)])
 
     else:
       print("WARNING got invalid Command!", command, file=sys.stderr)
@@ -136,11 +139,11 @@ def parse_state(response):
     command_start = response.index("Command:")
   plan_text = control_text = command_text = None
   # extract the text of each section
-  if plan_start:
+  if plan_start is not None and plan_start >= 0:
     plan_text = response[plan_start:control_start].strip()
-  if control_start:
+  if control_start is not None and control_start >= 0:
     control_text = response[control_start:command_start].strip()
-  if command_start:
+  if command_start is not None and command_start >= 0:
     command_text = response[command_start:].strip()
 
   return plan_text, control_text, command_text

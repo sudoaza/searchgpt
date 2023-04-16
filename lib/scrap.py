@@ -15,6 +15,8 @@ def get_article(url):
   while True:
     try:
       response = requests.get(url, headers=headers)
+      if response.status_code == 404:
+        return "404 Not Found"
       break
     except requests.exceptions.MissingSchema as e:
       return ""
@@ -22,7 +24,7 @@ def get_article(url):
       print("Backoff\n" + str(e), file=sys.stderr)
       if backoff > 120:
         print("Quitting!")
-        break
+        return ""
       sleep(backoff)
       backoff *= 2.72
   html_content = response.content

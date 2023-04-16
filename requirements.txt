@@ -1,7 +1,9 @@
-googlesearch
+googlesearch-python
 transformers
-openai
+openai==0.27.0
 requests
 newspaper3k
 bs4
 justext
+tiktoken=0.3.3
+
