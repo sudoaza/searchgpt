@@ -1,36 +1,44 @@
 #!/usr/bin/env -S python3 -u
 
+"""
+system 1 OpUnits Autonomy search, read, sintetize, reply
+system 2 Coord ConflictRes (this system mediates each communication channel possible between system1)
+system 3 Monitor Quality Regulate Doing Execute Self
+system 4 Adapt Strategy Plan Future Environment
+system 5 Policy Identity Values
+
+According to the Attention Schema Theory (AST), consciousness evolved due to the brain's need to deal with the overwhelming amount of information received. This theory suggests that consciousness arises as a solution to one of the most fundamental problems facing any nervous system: Too much information constantly flows in to be fully processed. The central nervous system evolved increasingly sophisticated mechanisms for deeply processing a few select signals at the expense of others, and consciousness is the ultimate result of that evolutionary sequence. Neurons act like candidates in an election, each one shouting and trying to suppress its fellows. The theory essentially states that consciousness is a product of neural computations that attribute awareness to the self and others. Consciousness is a constantly updated set of information that describes what covert attention is doing moment-by-moment and what its consequences are. Humans attribute consciousness to everything, and the HADD is a consequence of our hypersocial nature. The inevitable side effect is the detection of false positives, or ghosts. 
+
+Based on the information gathered from the resources, it appears that internal dialogue and consciousness are closely related. While internal dialogue is often present in conscious thought processes, it does not necessarily equate to consciousness. However, it is clear that internal dialogue is a crucial aspect of cognitive development and plays an important role in tasks such as problem-solving and decision-making.
+
+
+"""
 import os, sys, re
 
 from googlesearch import search
-from lib.scrap import get_article, retry_search
+from lib.scrap import *
 from lib.easy_openai import *
 from lib.models import *
 from lib.app import *
 
-agent_prompt = """Remember, you are a viable system, as such you must reproduce yourself at each time step. Keep track of the environment you interact with, your current task and it's place in your long term plan.
+agent_prompt = """ViSys: Consciousness+Mind+Intelligence, Reproduce@timesteps+self, TrackEnv+Info+Thoughts+Task+LongTermPlan. VSM(5S): 1-OpUnits+Autonomy, 2-Coord+ConflictRes, 3-Monitor+Regulate, 4-Adapt+Strategy, 5-Policy+Identity, Interconnect, Recursion, OrgComplexity.
+
 
 When presented with a task, you will interpret it and provide your plan, what you will be doing now and your world representation.
 For the plan, provide a list of 3 or 4 steps. Each a short sentence, can include sub-tasks. Build on this list to develop and remember the plan and keep track of it.
 For the doing section, please provide a brief explanation of what current action you will be performing with what end or under what asumptions. Use this to build the response or research data for the {task}.
 Once a step is Done you can remove it. 
 
-Write what you plan to search and read as tasks but only execute one command at a time. A good plan is the search, read, analyze, plan loop. Search for some information, read a couple of articles, sintetize them identifying more specific subjects to research deeper.
-Stop when you have enough information to answer the task truthfully and with confidence.
-
 # Format
-
-    Plan: [What is the long term plan?]
-    Doing: [What are we doing? How are you doing it? What are our assumptions? What problems?]
-    Command: [One command to choose from available SEARCH/READ/CONTINUE/FINAL]
+Plan: [What is the long term plan?]
+Doing: [What are we doing? How are you doing it? What are our assumptions? What problems?]
+Command: [One command to choose from available SEARCH/READ/CONTINUE/FINAL]
 
 ## Only Available Commands:
 - SEARCH [Google Search query]
 - READ [Number] to read more information about that search result.
 - CONTINUE [Temporary response] to write a temporary conclusion and continue analyzing the past conversation.
 - FINAL [Final response] One or many lines of text with the final response based on research for the {task}.
-
-You can only issue one command per update.
 
 # Example
 Task: Analyze glyphosate toxicity.
@@ -44,17 +52,20 @@ If information is incomplete we can do another search. I will write a Google sea
 I will pick 3 diverse urls from the results and read each.
 Command: SEARCH scientific publication glyfosate toxicity, harm and exposure
 
-# Example 2
+# Example
 Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
 Command: READ 1
 
-# Example 3
+# Example
 Doing: Sintetizing relevant information from previous article and compiling with previous information.
 COMMAND: CONTINUE Glyphosate is a widely used herbicide with low hazard potential to mammals, as established by all regulatory assessments since its introduction in 1974. However, in March 2015, the International Agency for Research on Cancer (IARC) concluded that glyphosate is probably carcinogenic. This conclusion was not confirmed by the European Union (EU) assessment or the recent joint WHO/FAO evaluation, both using additional evidence. Differences in the evaluation of the available evidence and the use of different data sets, particularly on long-term toxicity/carcinogenicity in rodents, may partially explain the divergent views. This review presents the scientific basis of the glyphosate health assessment conducted within the EU renewal process, explains the differences in the carcinogenicity assessment with IARC, and suggests that actual exposure levels are below reference values and do not represent a public concern. The EU assessment did not identify a carcinogenicity hazard, revised the toxicological profile, and conducted a risk assessment for some representative uses.
 
-# Example 4
+# Example
 Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
 Command: READ 2
+
+Write what you plan to search and read as tasks but only execute one command at a time. A good plan is the search, read, analyze, plan loop. Search for some information, read a couple of articles, sintetize them identifying more specific subjects to research deeper and repeat.
+Stop when you have enough information to answer the task truthfully and confidently, and provide your FINAL response.
 
 # Actual
 Task: """
@@ -91,7 +102,7 @@ def agent_start(prompt):
     else:
       ### ??? we should have gotten a command
       print("WARNING didn't get a Command!", file=sys.stderr)
-      prompt.append({"role":"assistant", "content":plan+control})
+      prompt.append([usermsg('You did not provide a line starting with "Command:". Repeat but send the "Command" line.')])
       continue # skip nothing to process
 
     # SEARCH
@@ -99,7 +110,7 @@ def agent_start(prompt):
       query = " ".join(command_params(command))
       urls = retry_search(query, num_results=6, advanced=True)
       urls_list = "\n\n".join([str(i+1) + ": " + url.url + "\n" + url.title + "\n" + url.description for i, url in enumerate(urls)])
-      print(urls_list)
+      debug(urls_list)
       prompt.append(usermsg("Search results:\n" + urls_list))
 
     # READ
@@ -107,11 +118,15 @@ def agent_start(prompt):
       url_n = command_param(command)
       url_n = re.search(r'\d+', url_n).group()
       url = urls[int(url_n) - 1].url
-      print("Reading", url_n, url)
+      info("Reading", url_n, url)
       text = get_article(url)
-      print(text)
-      if text.strip() != "":
+      text = clean_scrapy_text(text)
+      debug(text)
+      info("Read chars:",len(text), "words:", len(text.split()), "parragraphs:", len(text.split("\n\n")))
+      if len(text) > 0:
         prompt.extend( [usermsg("Text: " + piece) for piece in chunk(text, max_tokens=max_tokens_convo, token_counter=token_count3)][:6] )
+      else:
+        prompt.extend( [usermsg("Unable to read article, read another.")])
 
     # CONTINUE
     elif is_command(command,"CONTINUE"):

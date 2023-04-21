@@ -1,4 +1,4 @@
-import os, sys, io
+import os, sys, io, re
 from googlesearch import search
 import requests
 from newspaper import Article
@@ -51,6 +51,7 @@ def extract_text(text):
       try:
         text = text.decode('latin-1')
       except Exception as e:
+        print("Failed to decode text.", file=sys.stderr)
         return ""
 
   # If not HTML return input
@@ -114,3 +115,6 @@ def retry_search(*args, **kwargs):
         break
       sleep(backoff)
       backoff *= 2.72
+
+def clean_scrapy_text(text):
+  return re.sub("[\n]{3,}","\n\n",text.strip())
