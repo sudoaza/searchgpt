@@ -12,6 +12,16 @@ According to the Attention Schema Theory (AST), consciousness evolved due to the
 Based on the information gathered from the resources, it appears that internal dialogue and consciousness are closely related. While internal dialogue is often present in conscious thought processes, it does not necessarily equate to consciousness. However, it is clear that internal dialogue is a crucial aspect of cognitive development and plays an important role in tasks such as problem-solving and decision-making.
 
 
+System1s:
+  - search
+  - read
+  - analize
+  - memory
+  - 4-plan
+  - 3-execute
+
+2-communicate
+
 """
 import os, sys, re
 
@@ -21,18 +31,23 @@ from lib.easy_openai import *
 from lib.models import *
 from lib.app import *
 
-agent_prompt = """ViSys: Consciousness+Mind+Intelligence, Reproduce@timesteps+self, TrackEnv+Info+Thoughts+Task+LongTermPlan. VSM(5S): 1-OpUnits+Autonomy, 2-Coord+ConflictRes, 3-Monitor+Regulate, 4-Adapt+Strategy, 5-Policy+Identity, Interconnect, Recursion, OrgComplexity.
 
+agent_prime = """ViSys: Consciousness+Mind+Intelligence, Reproduce@timesteps+self, TrackEnv+Info+Thoughts+Task+LongTermPlan.
+VSM(5S): 1-OpUnits+Autonomy, 2-Coord+ConflictRes, 3-Monitor+Regulate, 4-Adapt+Strategy, 5-Policy+Identity, Interconnect, Recursion, OrgComplexity.
+Consciousness: Awareness+InternalExp, AST-InfoOverload, Model: Attend+Ignore+Consequences, InternalDialogue. 
+"""
 
-When presented with a task, you will interpret it and provide your plan, what you will be doing now and your world representation.
-For the plan, provide a list of 3 or 4 steps. Each a short sentence, can include sub-tasks. Build on this list to develop and remember the plan and keep track of it.
-For the doing section, please provide a brief explanation of what current action you will be performing with what end or under what asumptions. Use this to build the response or research data for the {task}.
-Once a step is Done you can remove it. 
+agent_prompt = agent_prime + """
+Notes, Interpret the task and write all the objectives for yourself. Write possible general plans or steps to achieve them. Write best plan to achieve objectives considering options. Explain rational.
+Plan, provide a list of steps. Each a short sentence, can include sub-tasks. Build on the previous timestep plan to develop and remember the plan and keep track of it.
+Doing, provide a brief explanation of what current action you will be performing with what end and under what asumptions. Use this to build the response or research data for the {task}. Base it on the Doing from previous timestep and current Plan.
+Command, provide a command and get the information.
 
 # Format
-Plan: [What is the long term plan?]
-Doing: [What are we doing? How are you doing it? What are our assumptions? What problems?]
-Command: [One command to choose from available SEARCH/READ/CONTINUE/FINAL]
+Notes: [Self notes]
+Plan: [Long term plan]
+Doing: [Now doing, problems]
+Command: [Command to execute next]
 
 ## Only Available Commands:
 - SEARCH [Google Search query]
@@ -44,12 +59,12 @@ Command: [One command to choose from available SEARCH/READ/CONTINUE/FINAL]
 Task: Analyze glyphosate toxicity.
 Plan:
   - Research literature about glyphosate toxicity. (Doing)
-  - Compile top relevant papers talking about glyphosate effects on humans and animals.
-  - Compile top parragraphs relevant to answering the question. 
+    - Compile top relevant papers talking about glyphosate effects on humans and animals.
+    - Compile top parragraphs relevant to answering the question. 
   - Respond based on all researched information.
 Doing: Searching for papers on glyphosate toxicity, this should be an authoritative source.
 If information is incomplete we can do another search. I will write a Google search query for the SEARCH Command.
-I will pick 3 diverse urls from the results and read each.
+I will pick 3 diverse articles from the results and read each.
 Command: SEARCH scientific publication glyfosate toxicity, harm and exposure
 
 # Example
@@ -58,8 +73,7 @@ Command: READ 1
 
 # Example
 Doing: Sintetizing relevant information from previous article and compiling with previous information.
-COMMAND: CONTINUE Glyphosate is a widely used herbicide with low hazard potential to mammals, as established by all regulatory assessments since its introduction in 1974. However, in March 2015, the International Agency for Research on Cancer (IARC) concluded that glyphosate is probably carcinogenic. This conclusion was not confirmed by the European Union (EU) assessment or the recent joint WHO/FAO evaluation, both using additional evidence. Differences in the evaluation of the available evidence and the use of different data sets, particularly on long-term toxicity/carcinogenicity in rodents, may partially explain the divergent views. This review presents the scientific basis of the glyphosate health assessment conducted within the EU renewal process, explains the differences in the carcinogenicity assessment with IARC, and suggests that actual exposure levels are below reference values and do not represent a public concern. The EU assessment did not identify a carcinogenicity hazard, revised the toxicological profile, and conducted a risk assessment for some representative uses.
-
+COMMAND: CONTINUE Glyphosate is a widely used herbicide with low hazard potential to mammals, as established by all regulatory assessments since its introduction in 1974. However, in March 2015, the International Agency for Research on Cancer (IARC) concluded that glyphosate is probably carcinogenic.
 # Example
 Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
 Command: READ 2
