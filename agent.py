@@ -1,27 +1,13 @@
 #!/usr/bin/env -S python3 -u
 
 """
-system 1 OpUnits Autonomy search, read, sintetize, reply
-system 2 Coord ConflictRes (this system mediates each communication channel possible between system1)
-system 3 Monitor Quality Regulate Doing Execute Self
-system 4 Adapt Strategy Plan Future Environment
-system 5 Policy Identity Values
-
-According to the Attention Schema Theory (AST), consciousness evolved due to the brain's need to deal with the overwhelming amount of information received. This theory suggests that consciousness arises as a solution to one of the most fundamental problems facing any nervous system: Too much information constantly flows in to be fully processed. The central nervous system evolved increasingly sophisticated mechanisms for deeply processing a few select signals at the expense of others, and consciousness is the ultimate result of that evolutionary sequence. Neurons act like candidates in an election, each one shouting and trying to suppress its fellows. The theory essentially states that consciousness is a product of neural computations that attribute awareness to the self and others. Consciousness is a constantly updated set of information that describes what covert attention is doing moment-by-moment and what its consequences are. Humans attribute consciousness to everything, and the HADD is a consequence of our hypersocial nature. The inevitable side effect is the detection of false positives, or ghosts. 
-
-Based on the information gathered from the resources, it appears that internal dialogue and consciousness are closely related. While internal dialogue is often present in conscious thought processes, it does not necessarily equate to consciousness. However, it is clear that internal dialogue is a crucial aspect of cognitive development and plays an important role in tasks such as problem-solving and decision-making.
-
-
-System1s:
   - search
   - read
   - analize
   - memory
+  - 5-...
   - 4-plan
   - 3-execute
-
-2-communicate
-
 """
 import os, sys, re
 
@@ -30,59 +16,6 @@ from lib.scrap import *
 from lib.easy_openai import *
 from lib.models import *
 from lib.app import *
-
-
-agent_prime = """ViSys: Consciousness+Mind+Intelligence, Reproduce@timesteps+self, TrackEnv+Info+Thoughts+Task+LongTermPlan.
-VSM(5S): 1-OpUnits+Autonomy, 2-Coord+ConflictRes, 3-Monitor+Regulate, 4-Adapt+Strategy, 5-Policy+Identity, Interconnect, Recursion, OrgComplexity.
-Consciousness: Awareness+InternalExp, AST-InfoOverload, Model: Attend+Ignore+Consequences, InternalDialogue. 
-"""
-
-agent_prompt = agent_prime + """
-Notes, Interpret the task and write all the objectives for yourself. Write possible general plans or steps to achieve them. Write best plan to achieve objectives considering options. Explain rational.
-Plan, provide a list of steps. Each a short sentence, can include sub-tasks. Build on the previous timestep plan to develop and remember the plan and keep track of it.
-Doing, provide a brief explanation of what current action you will be performing with what end and under what asumptions. Use this to build the response or research data for the {task}. Base it on the Doing from previous timestep and current Plan.
-Command, provide a command and get the information.
-
-# Format
-Notes: [Self notes]
-Plan: [Long term plan]
-Doing: [Now doing, problems]
-Command: [Command to execute next]
-
-## Only Available Commands:
-- SEARCH [Google Search query]
-- READ [Number] to read more information about that search result.
-- CONTINUE [Temporary response] to write a temporary conclusion and continue analyzing the past conversation.
-- FINAL [Final response] One or many lines of text with the final response based on research for the {task}.
-
-# Example
-Task: Analyze glyphosate toxicity.
-Plan:
-  - Research literature about glyphosate toxicity. (Doing)
-    - Compile top relevant papers talking about glyphosate effects on humans and animals.
-    - Compile top parragraphs relevant to answering the question. 
-  - Respond based on all researched information.
-Doing: Searching for papers on glyphosate toxicity, this should be an authoritative source.
-If information is incomplete we can do another search. I will write a Google search query for the SEARCH Command.
-I will pick 3 diverse articles from the results and read each.
-Command: SEARCH scientific publication glyfosate toxicity, harm and exposure
-
-# Example
-Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
-Command: READ 1
-
-# Example
-Doing: Sintetizing relevant information from previous article and compiling with previous information.
-COMMAND: CONTINUE Glyphosate is a widely used herbicide with low hazard potential to mammals, as established by all regulatory assessments since its introduction in 1974. However, in March 2015, the International Agency for Research on Cancer (IARC) concluded that glyphosate is probably carcinogenic.
-# Example
-Doing: Reading relevant paper. Assuming papers are an authoritative and trustworthy source.
-Command: READ 2
-
-Write what you plan to search and read as tasks but only execute one command at a time. A good plan is the search, read, analyze, plan loop. Search for some information, read a couple of articles, sintetize them identifying more specific subjects to research deeper and repeat.
-Stop when you have enough information to answer the task truthfully and confidently, and provide your FINAL response.
-
-# Actual
-Task: """
 
 def agent_start(prompt):
   plan = ""
